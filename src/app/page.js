@@ -16,8 +16,26 @@ export default function Home() {
   });
   const [statusMsg, setStatusMsg] = useState("");
 
+  // Fun Activity States
+  const [funStep, setFunStep] = useState(1);
+  const [selectedTeam, setSelectedTeam] = useState(null); // 'bride' or 'groom'
+  const [argumentWinner, setArgumentWinner] = useState(null); // 'bride' or 'groom'
+  const [wheelRotation, setWheelRotation] = useState(0);
+  const [wheelSpinning, setWheelSpinning] = useState(false);
+  const [wheelResult, setWheelResult] = useState(null);
+  const [generatedBlessing, setGeneratedBlessing] = useState("");
+  const [copiedBlessing, setCopiedBlessing] = useState(false);
+
   // Refs
   const playerRef = useRef(null);
+
+  // Scroll to top on page load/refresh and disable scroll restoration
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+  }, []);
 
   // 1. YouTube Player Integration
   useEffect(() => {
@@ -51,7 +69,7 @@ export default function Home() {
           showinfo: 0,
           rel: 0,
           enablejsapi: 1,
-          start: 20, // Start the background song at 20 seconds
+          start: 5, // Start the background song at5 seconds
           mute: 1, // Start muted to bypass browser policies
         },
         events: {
@@ -65,48 +83,23 @@ export default function Home() {
             } else {
               event.target.mute();
               event.target.playVideo();
-              setIsPlaying(true);
+              setIsPlaying(false);
             }
           },
           onStateChange: (event) => {
             if (event.data === window.YT.PlayerState.PLAYING) {
-              setIsPlaying(true);
+              const isMuted = event.target.isMuted && event.target.isMuted();
+              setIsPlaying(!isMuted);
+            } else if (
+              event.data === window.YT.PlayerState.PAUSED ||
+              event.data === window.YT.PlayerState.ENDED
+            ) {
+              setIsPlaying(false);
             }
           },
         },
       });
     }
-  }, []);
-
-  // 2. iOS Safari Autoplay Bypass via general user interaction
-  useEffect(() => {
-    const unmuteOnInteraction = () => {
-      if (playerRef.current && typeof playerRef.current.unMute === "function") {
-        playerRef.current.unMute();
-        playerRef.current.playVideo();
-        setIsPlaying(true);
-        console.log("Audio unmuted via user interaction.");
-        removeInteractionListeners();
-      }
-    };
-
-    const removeInteractionListeners = () => {
-      const events = ["click", "touchend"];
-      events.forEach((evt) => {
-        window.removeEventListener(evt, unmuteOnInteraction);
-        document.removeEventListener(evt, unmuteOnInteraction);
-      });
-    };
-
-    const events = ["click", "touchend"];
-    events.forEach((evt) => {
-      window.addEventListener(evt, unmuteOnInteraction);
-      document.addEventListener(evt, unmuteOnInteraction);
-    });
-
-    return () => {
-      removeInteractionListeners();
-    };
   }, []);
 
   // 3. Falling Petals Generator
@@ -211,6 +204,7 @@ export default function Home() {
   // Actions
   const handleOpenInvitation = (e) => {
     e.stopPropagation();
+    window.scrollTo(0, 0);
     setOverlayFaded(true);
 
     if (playerRef.current && typeof playerRef.current.unMute === "function") {
@@ -263,6 +257,85 @@ export default function Home() {
           alert(`Copy & Share this link: ${inviteUrl}`);
         });
     }
+  };
+
+  // Fun Activity Constants & Handlers
+  const BLESSINGS = [
+    "May your love grow stronger with each passing day! 🌸",
+    "Wishing you a lifetime of laughter, joy, and endless patience! 💕",
+    "May your home be filled with love, warm cups of tea, and happy memories! ☕",
+    "Here's to a lifetime of shared dreams and beautiful adventures together! ✈️",
+    "May your journey together be paved with trust, understanding, and sweet compromises! ✨",
+    "May the years ahead be filled with lasting joy and love that knows no bounds! 🥂",
+  ];
+
+  const WHEEL_SECTORS = [
+    "Who orders dinner tonight 🍕",
+    "TV Remote custody 📺",
+    "Spontaneous trip planner ✈️",
+    "Laundry Supervisor 🧺",
+    "Morning tea maker ☕",
+    "Who says sorry first 🤫",
+  ];
+
+  const handleSelectTeam = (team) => {
+    setSelectedTeam(team);
+    setTimeout(() => {
+      setFunStep(2);
+    }, 1200);
+  };
+
+  const handleSelectWinner = (winner) => {
+    setArgumentWinner(winner);
+    setTimeout(() => {
+      setFunStep(3);
+    }, 1500);
+  };
+
+  const handleSpinWheel = () => {
+    if (wheelSpinning) return;
+    setWheelSpinning(true);
+    setWheelResult(null);
+
+    const randomIndex = Math.floor(Math.random() * WHEEL_SECTORS.length);
+    // Rotate 5 full turns + align index clockwise
+    const rotations = 5;
+    const targetRotation = wheelRotation + (rotations * 360) - (randomIndex * 60) - (wheelRotation % 360);
+
+    setWheelRotation(targetRotation);
+
+    setTimeout(() => {
+      setWheelSpinning(false);
+      setWheelResult(WHEEL_SECTORS[randomIndex]);
+    }, 4000);
+  };
+
+  const handleGenerateBlessing = () => {
+    const randomIndex = Math.floor(Math.random() * BLESSINGS.length);
+    setGeneratedBlessing(BLESSINGS[randomIndex]);
+  };
+
+  const handleCopyBlessing = () => {
+    if (!generatedBlessing) return;
+    navigator.clipboard.writeText(generatedBlessing)
+      .then(() => {
+        setCopiedBlessing(true);
+        setTimeout(() => setCopiedBlessing(false), 2000);
+      })
+      .catch((err) => {
+        console.error("Failed to copy blessing: ", err);
+      });
+  };
+
+  const handleResetFun = () => {
+    setFunStep(1);
+    setSelectedTeam(null);
+    setArgumentWinner(null);
+    setWheelRotation(0);
+    setWheelSpinning(false);
+    setWheelResult(null);
+    setGeneratedBlessing("");
+    setCopiedBlessing(false);
   };
 
   return (
@@ -457,7 +530,7 @@ export default function Home() {
               <div className="timeline-node"></div>
               <div className="timeline-card">
                 <h3 className="event-title">Pellikoduku Ceremony</h3>
-                <p className="event-date">Date: 21 August 2026</p>
+                <p className="event-date">Date: 17 August 2026</p>
                 <p className="event-time">Time: 8:30 AM</p>
                 <p className="event-venue">Venue: Thantikonda</p>
               </div>
@@ -467,7 +540,7 @@ export default function Home() {
               <div className="timeline-node"></div>
               <div className="timeline-card">
                 <h3 className="event-title">Pellikuthuru Ceremony</h3>
-                <p className="event-date">Date: 21 August 2026</p>
+                <p className="event-date">Date: 17 August 2026</p>
                 <p className="event-time">Time: 8:45 AM</p>
                 <p className="event-venue">Venue: Gokavaram</p>
               </div>
@@ -545,6 +618,160 @@ export default function Home() {
               <span>OPEN IN GOOGLE MAPS </span>
               <span className="arrow-diagonal">↗</span>
             </a>
+          </div>
+        </section>
+
+        {/* Section 9.5: Interactive Fun Corner */}
+        <section className="fun-corner-section reveal-on-scroll" id="section-fun-corner">
+          <div className="telugu-text section-telugu-header">వినోద కోణం</div>
+          <h2 className="section-title">Before You Leave...</h2>
+          
+          <div className="fun-card-container">
+            {funStep === 1 && (
+              <div className="fun-step-card animate-fade-in">
+                <h3 className="fun-step-title">👇 Choose Your Team</h3>
+                <div className="team-buttons">
+                  <button 
+                    className={`team-btn team-bride ${selectedTeam === 'bride' ? 'selected' : ''}`}
+                    onClick={() => handleSelectTeam('bride')}
+                    disabled={selectedTeam !== null}
+                  >
+                    <span className="emoji">👰</span>
+                    <span className="label">Team Bride</span>
+                  </button>
+                  <button 
+                    className={`team-btn team-groom ${selectedTeam === 'groom' ? 'selected' : ''}`}
+                    onClick={() => handleSelectTeam('groom')}
+                    disabled={selectedTeam !== null}
+                  >
+                    <span className="emoji">🤵</span>
+                    <span className="label">Team Groom</span>
+                  </button>
+                </div>
+                {selectedTeam && (
+                  <p className="fun-feedback animate-bounce-subtle">
+                    {selectedTeam === 'bride' 
+                      ? "🌸 Awesome choice! Team Bride is leading the style! 🌸" 
+                      : "🕶️ Stately pick! Team Groom stands united! 🕶️"}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {funStep === 2 && (
+              <div className="fun-step-card animate-fade-in">
+                <h3 className="fun-step-title">Who will win most arguments?</h3>
+                <div className="team-buttons">
+                  <button 
+                    className={`winner-btn winner-bride ${argumentWinner === 'bride' ? 'selected' : ''}`}
+                    onClick={() => handleSelectWinner('bride')}
+                    disabled={argumentWinner !== null}
+                  >
+                    <span className="emoji">👰</span>
+                    <span className="label">Bride</span>
+                  </button>
+                  <button 
+                    className={`winner-btn winner-groom ${argumentWinner === 'groom' ? 'selected' : ''}`}
+                    onClick={() => handleSelectWinner('groom')}
+                    disabled={argumentWinner !== null}
+                  >
+                    <span className="emoji">🤵</span>
+                    <span className="label">Groom</span>
+                  </button>
+                </div>
+                {argumentWinner && (
+                  <p className="fun-feedback">
+                    {argumentWinner === 'bride' 
+                      ? "🤫 Wise choice! The Bride is always right!" 
+                      : "🤵 Brave choice! We admire your optimism!"}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {funStep === 3 && (
+              <div className="fun-step-card animate-fade-in">
+                <h3 className="fun-step-title">Spin the Wheel of Married Life 🎡</h3>
+                
+                <div className="wheel-outer-container">
+                  <div className="wheel-pointer">👇</div>
+                  <div 
+                    className="wheel-container"
+                    style={{ 
+                      transform: `rotate(${wheelRotation}deg)`,
+                      transition: wheelSpinning ? 'transform 4s cubic-bezier(0.1, 0.8, 0.2, 1)' : 'none'
+                    }}
+                  >
+                    {WHEEL_SECTORS.map((sector, i) => (
+                      <div 
+                        key={i} 
+                        className="wheel-segment" 
+                        style={{ '--segment-index': i }}
+                      >
+                        <div className="wheel-segment-content">
+                          {sector}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="wheel-controls">
+                  <button 
+                    className="spin-btn" 
+                    onClick={handleSpinWheel} 
+                    disabled={wheelSpinning}
+                  >
+                    {wheelSpinning ? 'SPINNING...' : 'SPIN THE WHEEL 🎡'}
+                  </button>
+                </div>
+
+                {wheelResult && (
+                  <div className="wheel-result-box animate-scale-up">
+                    <p className="result-label">The Wheel Has Spoken!</p>
+                    <h4 className="result-text">{wheelResult}</h4>
+                    <button className="next-step-btn" onClick={() => setFunStep(4)}>
+                      Next: Generate a Blessing 🙏
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {funStep === 4 && (
+              <div className="fun-step-card animate-fade-in">
+                <h3 className="fun-step-title">Generate a Blessing 🙏</h3>
+                <p className="fun-step-desc">Click below to generate a heartfelt blessing or wishes for the couple!</p>
+                
+                <button className="blessing-btn" onClick={handleGenerateBlessing}>
+                  {generatedBlessing ? "GENERATE ANOTHER 💫" : "GENERATE WISHES ✨"}
+                </button>
+
+                {generatedBlessing && (
+                  <div className="blessing-result animate-scale-up">
+                    <div className="blessing-quote-box">
+                      <p>"{generatedBlessing}"</p>
+                    </div>
+                    <button className="copy-blessing-btn" onClick={handleCopyBlessing}>
+                      {copiedBlessing ? "Copied! ✅" : "Copy Wishes 📋"}
+                    </button>
+                    <button className="next-step-btn" onClick={() => setFunStep(5)}>
+                      Complete 💖
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {funStep === 5 && (
+              <div className="fun-step-card final-thank-you animate-fade-in">
+                <h3 className="thank-you-title">❤️ Thank You for Being Part of Our Journey ❤️</h3>
+                <p className="thank-you-desc">Your interaction and warm blessings mean the world to us!</p>
+                <button className="play-again-btn" onClick={handleResetFun}>
+                  Play Again 🔄
+                </button>
+              </div>
+            )}
           </div>
         </section>
 
