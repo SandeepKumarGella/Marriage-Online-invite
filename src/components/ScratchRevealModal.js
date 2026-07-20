@@ -3,6 +3,49 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 
 /**
+ * Helper to draw a smooth heart path on canvas context
+ */
+function drawHeartPath(ctx, x, y, width, height, inset = 0) {
+  const w = width - inset * 2;
+  const h = height - inset * 2;
+  const ox = x + inset;
+  const oy = y + inset;
+
+  ctx.beginPath();
+  // Start at top cleft
+  const topCleftY = oy + h * 0.28;
+  const bottomPointY = oy + h * 0.95;
+
+  ctx.moveTo(ox + w / 2, topCleftY);
+
+  // Top left lobe
+  ctx.bezierCurveTo(
+    ox + w * 0.26, oy + h * 0.02,
+    ox, oy + h * 0.16,
+    ox, oy + h * 0.42
+  );
+  // Bottom left curve to tip
+  ctx.bezierCurveTo(
+    ox, oy + h * 0.68,
+    ox + w * 0.28, oy + h * 0.83,
+    ox + w / 2, bottomPointY
+  );
+  // Bottom right curve to tip
+  ctx.bezierCurveTo(
+    ox + w * 0.72, oy + h * 0.83,
+    ox + w, oy + h * 0.68,
+    ox + w, oy + h * 0.42
+  );
+  // Top right lobe
+  ctx.bezierCurveTo(
+    ox + w, oy + h * 0.16,
+    ox + w * 0.74, oy + h * 0.02,
+    ox + w / 2, topCleftY
+  );
+  ctx.closePath();
+}
+
+/**
  * ScratchRevealModal — Rub-to-Reveal Bottom Sheet
  * 
  * @param {Object} props
@@ -10,13 +53,15 @@ import { useEffect, useRef, useState, useCallback } from "react";
  * @param {string} props.image - URL of the photo to reveal
  * @param {string} [props.overlayText="Rub to Reveal ✨"] - Text displayed on scratch layer
  * @param {number} [props.revealThreshold=0.75] - Threshold of scratched area (0.75 = 75%)
+ * @param {string} [props.shape="rectangle"] - Shape of scratch layer ("heart" | "rectangle")
  * @param {Function} props.onClose - Callback when closing the bottom sheet
  */
 export default function ScratchRevealModal({
   title,
   image,
   overlayText = "Rub to Reveal ✨",
-  revealThreshold = 0.75,
+  revealThreshold = 0.7,
+  shape = "rectangle",
   onClose,
 }) {
   const canvasRef = useRef(null);
@@ -25,6 +70,7 @@ export default function ScratchRevealModal({
   const lastPointRef = useRef(null);
   const closeTimerRef = useRef(null);
   const revealCheckRef = useRef(null);
+  const initialOpaqueCountRef = useRef(0);
 
   const [isRevealed, setIsRevealed] = useState(false);
   const [revealPercent, setRevealPercent] = useState(0);
@@ -83,8 +129,16 @@ export default function ScratchRevealModal({
 
     const { width, height } = canvas;
 
-    // Reset composite operation
+    // Reset composite operation & clear canvas
     ctx.globalCompositeOperation = "source-over";
+    ctx.clearRect(0, 0, width, height);
+
+    if (shape === "heart") {
+      ctx.save();
+      // Draw path slightly inset so borders cover it cleanly
+      drawHeartPath(ctx, 0, 0, width, height, 2);
+      ctx.clip();
+    }
 
     // 1. Draw Metallic Gold & Dark Crimson Foil Layer
     const gradient = ctx.createLinearGradient(0, 0, width, height);
@@ -96,36 +150,32 @@ export default function ScratchRevealModal({
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
 
-    // 2. Decorative borders inside canvas
-    ctx.strokeStyle = "rgba(212, 175, 55, 0.45)";
-    ctx.lineWidth = 3;
-    ctx.strokeRect(8, 8, width - 16, height - 16);
-
-    ctx.strokeStyle = "rgba(212, 175, 55, 0.25)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(13, 13, width - 26, height - 26);
-
-    // 3. Sparkles / Stars
+    // 2. Sparkles / Stars inside foil
     const sparkles = [
-      { x: 25, y: 25 }, { x: width - 25, y: 30 },
-      { x: 35, y: height - 30 }, { x: width - 30, y: height - 25 },
-      { x: width / 2 - 60, y: 45 }, { x: width / 2 + 60, y: height - 45 }
+      { x: width * 0.25, y: height * 0.25 },
+      { x: width * 0.75, y: height * 0.25 },
+      { x: width * 0.5, y: height * 0.18 },
+      { x: width * 0.18, y: height * 0.5 },
+      { x: width * 0.82, y: height * 0.5 },
+      { x: width * 0.5, y: height * 0.76 }
     ];
-    ctx.fillStyle = "rgba(241, 229, 198, 0.65)";
+    ctx.fillStyle = "rgba(241, 229, 198, 0.75)";
     sparkles.forEach((s) => {
       ctx.beginPath();
-      ctx.arc(s.x, s.y, 2, 0, Math.PI * 2);
+      ctx.arc(s.x, s.y, 2.5, 0, Math.PI * 2);
       ctx.fill();
     });
 
-    // 4. Center Instruction Pill
+    // 3. Center Instruction Pill
     const badgeW = Math.min(230, width - 40);
-    const badgeH = 52;
-    ctx.fillStyle = "rgba(15, 3, 7, 0.65)";
+    const badgeH = 50;
+    const centerY = shape === "heart" ? height * 0.46 : height / 2;
+
+    ctx.fillStyle = "rgba(15, 3, 7, 0.72)";
     ctx.beginPath();
-    ctx.roundRect(width / 2 - badgeW / 2, height / 2 - badgeH / 2, badgeW, badgeH, 14);
+    ctx.roundRect(width / 2 - badgeW / 2, centerY - badgeH / 2, badgeW, badgeH, 14);
     ctx.fill();
-    ctx.strokeStyle = "rgba(212, 175, 55, 0.7)";
+    ctx.strokeStyle = "rgba(212, 175, 55, 0.75)";
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
@@ -134,17 +184,59 @@ export default function ScratchRevealModal({
     ctx.font = "600 14px Montserrat, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(overlayText, width / 2, height / 2 - 5);
+    ctx.fillText(overlayText, width / 2, centerY - 6);
 
     ctx.fillStyle = "rgba(212, 175, 55, 0.95)";
     ctx.font = "italic 11px Cormorant Garamond, serif";
-    ctx.fillText("Rub with finger or mouse 👆", width / 2, height / 2 + 13);
+    ctx.fillText("Rub with finger or mouse 👆", width / 2, centerY + 12);
+
+    if (shape === "heart") {
+      ctx.restore();
+
+      // Draw double decorative gold borders following heart shape
+      ctx.strokeStyle = "rgba(212, 175, 55, 0.85)";
+      ctx.lineWidth = 3.5;
+      drawHeartPath(ctx, 0, 0, width, height, 3);
+      ctx.stroke();
+
+      ctx.strokeStyle = "rgba(212, 175, 55, 0.4)";
+      ctx.lineWidth = 1.5;
+      drawHeartPath(ctx, 0, 0, width, height, 10);
+      ctx.stroke();
+    } else {
+      // Rectangular borders
+      ctx.strokeStyle = "rgba(212, 175, 55, 0.45)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(8, 8, width - 16, height - 16);
+
+      ctx.strokeStyle = "rgba(212, 175, 55, 0.25)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(13, 13, width - 26, height - 26);
+    }
+
+    // Calculate initial opaque pixel count for accurate reveal percentage
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const pixels = imageData.data;
+    let initialCount = 0;
+    const step = 16;
+    for (let i = 3; i < pixels.length; i += step * 4) {
+      if (pixels[i] > 0) initialCount++;
+    }
+    initialOpaqueCountRef.current = initialCount || 1;
+
+    // For heart shape, fill remaining transparent corners with solid modal background
+    if (shape === "heart") {
+      ctx.globalCompositeOperation = "destination-over";
+      ctx.fillStyle = "#120306";
+      ctx.fillRect(0, 0, width, height);
+      ctx.globalCompositeOperation = "source-over";
+    }
 
     // Configure stroke settings for erasing
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
-    ctx.lineWidth = 42; // Rub brush size
-  }, [imgDimensions, overlayText]);
+    ctx.lineWidth = 44; // Rub brush size
+  }, [imgDimensions, overlayText, shape]);
 
   useEffect(() => {
     if (imgDimensions.width > 0 && imgDimensions.height > 0) {
@@ -171,16 +263,16 @@ export default function ScratchRevealModal({
       const pixels = imageData.data;
 
       let clearedPixels = 0;
-      const totalPixels = pixels.length / 4;
-      const step = 24;
+      const step = 16;
 
       for (let i = 3; i < pixels.length; i += step * 4) {
-        if (pixels[i] === 0) {
+        if (pixels[i] < 16) {
           clearedPixels++;
         }
       }
 
-      const ratio = clearedPixels / (totalPixels / step);
+      const totalInitial = initialOpaqueCountRef.current;
+      const ratio = clearedPixels / totalInitial;
       const percent = Math.min(100, Math.round(ratio * 100));
       setRevealPercent(percent);
 
@@ -197,6 +289,19 @@ export default function ScratchRevealModal({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    ctx.save();
+    if (shape === "heart") {
+      drawHeartPath(ctx, 0, 0, canvas.width, canvas.height, 2);
+      ctx.clip();
+    }
+
+    // Explicitly configure brush properties inside save context
+    ctx.lineWidth = 44; // Thick brush size
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "rgba(0, 0, 0, 1)";
+    ctx.fillStyle = "rgba(0, 0, 0, 1)";
+
     ctx.globalCompositeOperation = "destination-out";
 
     if (lastPointRef.current) {
@@ -209,6 +314,8 @@ export default function ScratchRevealModal({
       ctx.arc(x, y, 22, 0, Math.PI * 2);
       ctx.fill();
     }
+
+    ctx.restore();
 
     lastPointRef.current = { x, y };
     checkRevealPercentage();
@@ -271,6 +378,7 @@ export default function ScratchRevealModal({
   // Prevent background scroll
   useEffect(() => {
     const scrollY = window.scrollY;
+    const htmlStyle = document.documentElement.style.scrollBehavior;
 
     document.body.style.position = "fixed";
     document.body.style.top = `-${scrollY}px`;
@@ -280,7 +388,7 @@ export default function ScratchRevealModal({
     document.body.style.overflow = "hidden";
 
     return () => {
-      const y = Math.abs(parseInt(document.body.style.top || "0", 10));
+      document.documentElement.style.scrollBehavior = "auto";
 
       document.body.style.position = "";
       document.body.style.top = "";
@@ -289,7 +397,12 @@ export default function ScratchRevealModal({
       document.body.style.width = "";
       document.body.style.overflow = "";
 
-      window.scrollTo(0, y);
+      window.scrollTo(0, scrollY);
+
+      // Restore original scroll behavior after layout flow stabilizes
+      setTimeout(() => {
+        document.documentElement.style.scrollBehavior = htmlStyle;
+      }, 50);
     };
   }, []);
 
@@ -344,8 +457,8 @@ export default function ScratchRevealModal({
         </div>
 
         {/* Centered Image & Exact-Fit Canvas Container */}
-        <div className="sheet-media-wrapper">
-          <div className="sheet-media-inner">
+        <div className={`sheet-media-wrapper ${shape === "heart" ? "is-heart" : ""}`}>
+          <div className={`sheet-media-inner ${shape === "heart" ? "shape-heart" : ""}`}>
             {/* Event Photo */}
             <img
               ref={imgRef}

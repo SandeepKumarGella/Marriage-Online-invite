@@ -130,6 +130,7 @@ const TIMELINE_EVENTS = [
     venue: "Sree Gopi Krishna Gardens, Gokavaram",
     highlight: true,
     scratchImage: "/event_wedding.png",
+    scratchShape: "heart",
   },
   {
     emoji: "🎉",
@@ -195,6 +196,7 @@ export default function Home() {
     title: "",
     image: "",
     overlayText: "",
+    shape: "rectangle",
   });
 
   // Fun Corner
@@ -625,18 +627,19 @@ export default function Home() {
             {overlayFaded ? (
               <>
                 <AnimatedName name="Siva Rajesh" className="name-groom" delayBase={950} />
-                <span
+                <span className="heart-icon" style={{ fontSize: "1.1rem" }} aria-hidden="true">❤</span>
+                {/* <span
                   className="heart-icon"
                   style={{ fontSize: "1.4rem", animationDelay: "1.6s", opacity: 0, animation: "letter-rise 0.52s 1.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards" }}
                   aria-hidden="true"
-                >❤</span>
+                >❤</span> */}
                 <AnimatedName name="Suchitra" className="name-bride" delayBase={1680} />
               </>
             ) : (
               // Hidden until overlay fades to prevent flash
               <>
                 <span className="name-groom" style={{ opacity: 0 }}>Siva Rajesh</span>
-                <span className="heart-icon" style={{ opacity: 0 }}>❤</span>
+                <span className="heart-icon" style={{ fontSize: "1.1rem" }} aria-hidden="true">❤</span>
                 <span className="name-bride" style={{ opacity: 0 }}>Suchitra</span>
               </>
             )}
@@ -837,6 +840,7 @@ export default function Home() {
                           title: event.title,
                           image: event.scratchImage,
                           overlayText: "Rub here to reveal photo ✨",
+                          shape: event.scratchShape || "rectangle",
                         })
                       }
                       aria-label={`Rub to reveal photo for ${event.title}`}
@@ -896,10 +900,8 @@ export default function Home() {
           {/* Bokeh */}
           <div className="bokeh-orb fun-corner-bokeh-1" aria-hidden="true" />
           <div className="bokeh-orb fun-corner-bokeh-2" aria-hidden="true" />
-
-          <div className="telugu-text section-telugu-header">వినోద కోణం</div>
+          <div className="telugu-text section-telugu-header">Fun Corner😂</div>
           <h2 className="section-title">Before You Leave...</h2>
-
           {/* Step progress dots */}
           <div className="step-indicator" role="progressbar" aria-valuenow={funStep} aria-valuemin={1} aria-valuemax={5} aria-label={`Step ${funStep} of 5`}>
             {[1, 2, 3, 4, 5].map((step) => (
@@ -1203,6 +1205,23 @@ export default function Home() {
         aria-hidden="true"
       />
 
+      {/* SVG Clip Path for Heart Shaped Scratch Layer */}
+      <svg style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }} aria-hidden="true">
+        <defs>
+          <clipPath id="scratch-heart-clip" clipPathUnits="objectBoundingBox">
+            <path d="M 0.5, 0.28
+                     C 0.5, 0.28, 0.38, 0.02, 0.26, 0.02
+                     C 0.13, 0.02, 0.02, 0.13, 0.02, 0.28
+                     C 0.02, 0.44, 0.15, 0.61, 0.28, 0.74
+                     L 0.5, 0.95
+                     L 0.72, 0.74
+                     C 0.85, 0.61, 0.98, 0.44, 0.98, 0.28
+                     C 0.98, 0.13, 0.87, 0.02, 0.74, 0.02
+                     C 0.62, 0.02, 0.5, 0.28, 0.5, 0.28 Z" />
+          </clipPath>
+        </defs>
+      </svg>
+
       {/* ════════════════════════════════════════════
           SCRATCH REVEAL MODAL ("Rub to Reveal")
           ════════════════════════════════════════════ */}
@@ -1212,8 +1231,9 @@ export default function Home() {
           image={scratchModal.image}
           overlayText={scratchModal.overlayText}
           revealThreshold={0.7}
+          shape={scratchModal.shape}
           onClose={() =>
-            setScratchModal({ isOpen: false, title: "", image: "", overlayText: "" })
+            setScratchModal({ isOpen: false, title: "", image: "", overlayText: "", shape: "rectangle" })
           }
         />
       )}
